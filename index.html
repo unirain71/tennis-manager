@@ -2,11 +2,9 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>테니스 대회 매니저 (실력 5단계 반영)</title>
-    <!-- 모바일 앱 환경 설정 -->
+    <title>테니스 대회 매니저 (히스토리 완벽 저장)</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
 <style>
     body { font-family: 'Pretendard', sans-serif; padding: 20px; line-height: 1.6; background: #f0f2f5; color: #1a1a1a; }
     .container { max-width: 950px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
@@ -15,38 +13,33 @@
     
     table { width: 100%; border-collapse: collapse; margin-bottom: 30px; background: #fff; }
     th { background: #2c3e50; color: #ffffff !important; border: 1px solid #dee2e6; padding: 10px; font-size: 14px; }
-    td { border: 1px solid #dee2e6; padding: 10px; color: #333333 !important; text-align: center; font-size: 15px; }
+    td { border: 1px solid #dee2e6; padding: 10px; color: #333 !important; text-align: center; }
     
     .rank-high { background-color: #e3f2fd !important; font-weight: bold; }
-    .rank-high td { color: #0d47a1 !important; }
-
-    .admin-only-cell { background-color: #fff9c4 !important; color: #d35400 !important; font-weight: bold; }
-    .editable-lvl { cursor: pointer; text-decoration: underline; color: #e67e22 !important; }
-
-    input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; color: #000 !important; background: #fff; }
     .btn { padding: 8px 15px; background: #3498db; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-right: 5px; }
-    .btn-admin { background: #546e7a; font-size: 12px; }
     .btn-gen { background: #2980b9; width: 100%; padding: 15px; font-size: 16px; margin-top: 10px; }
-    .btn-backup { background: #27ae60; font-size: 12px; }
     .btn-reset { background: #e74c3c; font-size: 12px; }
     
     .match-card { border-left: 5px solid #3498db; background: #f8f9fa; padding: 12px; margin-bottom: 10px; border-radius: 5px; display: flex; align-items: center; justify-content: space-between; color: #2c3e50; }
     .completed { background: #e9ecef !important; border-left-color: #95a5a6 !important; opacity: 0.8; }
-    .score-display { font-weight: bold; color: #2980b9; font-size: 1.1em; margin: 0 15px; }
+    
+    /* 히스토리 전용 스타일 */
+    .history-section { margin-top: 40px; border-top: 2px dashed #ccc; padding-top: 20px; }
+    .history-item { font-size: 13px; padding: 8px; border-bottom: 1px solid #eee; color: #666; }
+    .history-date { font-weight: bold; color: #34495e; display: block; margin-bottom: 5px; }
 </style>
 </head>
 <body>
 
 <div class="container">
     <h2>
-        🎾 테니스 대회 매니저
+        🎾 테니스 대회 운영 시스템
         <div>
-            <button class="btn btn-backup" onclick="exportData()">📥 데이터 백업</button>
-            <label class="btn btn-backup" style="display:inline-block; cursor:pointer;">
-                📤 복구
-                <input type="file" style="display:none" onchange="importData(event)">
+            <button class="btn" style="background:#27ae60" onclick="exportData()">📥 백업</button>
+            <label class="btn" style="background:#8e44ad; display:inline-block; cursor:pointer;">
+                📤 복구 <input type="file" style="display:none" onchange="importData(event)">
             </label>
-            <button class="btn btn-admin" id="adminBtn" onclick="toggleAdmin()">🔒 관리자</button>
+            <button class="btn" style="background:#546e7a" id="adminBtn" onclick="toggleAdmin()">🔒 관리자</button>
         </div>
     </h2>
     
@@ -55,174 +48,115 @@
             <input type="text" id="pName" placeholder="이름">
             <select id="pLevel">
                 <option value="" disabled selected>실력 선택</option>
-                <option value="5">고급 (전략적 경기 운영)</option>
-                <option value="4">상급 (게임 운영 능력)</option>
-                <option value="3">중급 (스트로크 안정성)</option>
-                <option value="2">초급 (간단한 전술 사용)</option>
-                <option value="1">입문 (랠리 가능, 서브 기본)</option>
+                <option value="5">고급</option><option value="4">상급</option>
+                <option value="3">중급</option><option value="2">초급</option>
+                <option value="1">입문</option>
             </select>
             <button class="btn" onclick="addPlayer()">선수 추가</button>
             <button class="btn btn-reset" onclick="resetAll()">초기화</button>
         </div>
         <div>
             목표 경기 수: <input type="number" id="targetGames" value="4" style="width:50px;">
-            <button class="btn btn-gen" onclick="generateMatches()">대진표 생성</button>
+            <button class="btn btn-gen" onclick="generateMatches()">대진표 새 생성 (기존 기록은 히스토리로)</button>
         </div>
     </div>
 
-    <h3>📊 순위표 <span id="adminStatus" style="font-size: 12px; color: #d35400; display: none; font-weight: bold;">(수정 모드)</span></h3>
+    <h3>📊 순위표 <span id="adminStatus" style="display:none; color:#d35400;">(수정 가능)</span></h3>
     <table id="rankTable">
         <thead>
             <tr>
-                <th style="width:50px;">참가</th>
-                <th style="width:60px;">순위</th>
-                <th>이름</th>
-                <th id="adminTh" style="display:none;">실력(수정)</th>
-                <th>경기수</th>
-                <th>승점</th>
-                <th>득실차</th>
+                <th style="width:40px;">참가</th><th style="width:50px;">순위</th><th>이름</th>
+                <th id="adminTh" style="display:none;">실력</th><th>경기수</th><th>승점</th><th>득실차</th>
             </tr>
         </thead>
         <tbody></tbody>
     </table>
 
+    <h3>🎾 진행 중인 경기</h3>
     <div id="matchContainer"></div>
+
+    <!-- 히스토리 섹션 추가 -->
+    <div class="history-section">
+        <h3>📜 과거 경기 기록 (History)</h3>
+        <div id="historyContainer">과거 기록이 없습니다.</div>
+    </div>
 </div>
 
 <script>
 let players = [];
 let matches = [];
+let history = []; // 과거 기록 저장 배열
 let isAdmin = false;
-const STORAGE_KEY = 'tennis_total_history_v5_plus'; // 저장 키 변경
+const STORAGE_KEY = 'tennis_v3_5_storage';
+const levelMap = {"5":"고급","4":"상급","3":"중급","2":"초급","1":"입문"};
 
-// 5단계 등급 매핑 업데이트
-const levelMap = { 
-    "5": "고급", 
-    "4": "상급", 
-    "3": "중급", 
-    "2": "초급", 
-    "1": "입문" 
-};
+window.onload = function() { loadData(); };
 
-window.onload = function() { loadFromLocal(); };
+function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify({ players, matches, history })); }
 
-function saveToLocal() { localStorage.setItem(STORAGE_KEY, JSON.stringify({ players, matches })); }
-
-function loadFromLocal() {
+function loadData() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-        const parsed = JSON.parse(saved);
-        players = parsed.players || [];
-        matches = parsed.matches || [];
+        const d = JSON.parse(saved);
+        players = d.players || [];
+        matches = d.matches || [];
+        history = d.history || [];
         updateRankTable();
-        renderAllMatches();
-    }
-}
-
-function toggleAdmin() {
-    isAdmin = !isAdmin;
-    const adminTh = document.getElementById('adminTh');
-    const adminStatus = document.getElementById('adminStatus');
-    const adminBtn = document.getElementById('adminBtn');
-
-    if (isAdmin) {
-        const pw = prompt("관리자 비밀번호를 입력하세요 (기본: 1234)");
-        if (pw !== "1234") { isAdmin = false; return alert("틀렸습니다."); }
-        adminBtn.innerText = "🔓 해제";
-        if(adminTh) adminTh.style.display = "table-cell";
-        if(adminStatus) adminStatus.style.display = "inline";
-    } else {
-        adminBtn.innerText = "🔒 관리자";
-        if(adminTh) adminTh.style.display = "none";
-        if(adminStatus) adminStatus.style.display = "none";
-    }
-    updateRankTable();
-}
-
-function updateLevel(name) {
-    if (!isAdmin) return;
-    const p = players.find(x => x.name === name);
-    // 수정 시 5단계 가이드 제공
-    const newLvl = prompt(`${name} 실력 수정 (5:고급, 4:상급, 3:중급, 2:초급, 1:입문)`, p.level);
-    if (newLvl && ["1","2","3","4","5"].includes(newLvl)) {
-        p.level = parseInt(newLvl);
-        saveToLocal();
-        updateRankTable();
+        renderMatches();
+        renderHistory();
     }
 }
 
 function addPlayer() {
     const name = document.getElementById('pName').value.trim();
-    const levelStr = document.getElementById('pLevel').value;
-    if(!name || !levelStr) return alert("이름과 실력을 선택하세요");
-    if(players.find(p => p.name === name)) return alert("이미 있습니다.");
-    
-    players.push({ name, level: parseInt(levelStr), score: 0, diff: 0, gamesPlayed: 0, active: true });
+    const level = document.getElementById('pLevel').value;
+    if(!name || !level) return alert("이름과 실력을 선택하세요.");
+    players.push({ name, level: parseInt(level), score: 0, diff: 0, gamesPlayed: 0, active: true });
     document.getElementById('pName').value = '';
-    document.getElementById('pLevel').selectedIndex = 0;
-    updateRankTable();
-    saveToLocal();
-}
-
-function updateRankTable() {
-    const tbody = document.querySelector('#rankTable tbody');
-    if(!tbody) return;
-    tbody.innerHTML = "";
-    let ranked = [...players].sort((a, b) => b.score - a.score || b.diff - a.diff || b.level - a.level);
-    
-    ranked.forEach((p, i) => {
-        const tr = document.createElement('tr');
-        if(p.score > 0 && i < 3) tr.className = "rank-high";
-        let html = `<td><input type="checkbox" ${p.active ? 'checked' : ''} onchange="toggleActive('${p.name}')"></td><td>${i+1}</td><td style="text-align:left; padding-left:20px;">${p.name}</td>`;
-        if (isAdmin) html += `<td class="admin-only-cell editable-lvl" onclick="updateLevel('${p.name}')">${levelMap[p.level] || '입문'}</td>`;
-        html += `<td>${p.gamesPlayed}</td><td>${p.score}</td><td>${p.diff}</td>`;
-        tr.innerHTML = html;
-        tbody.appendChild(tr);
-    });
-}
-
-function toggleActive(name) {
-    const p = players.find(x => x.name === name);
-    if(p) p.active = !p.active;
-    saveToLocal();
+    saveData(); updateRankTable();
 }
 
 function generateMatches() {
-    const activePlayers = players.filter(p => p.active);
-    if(activePlayers.length < 4) return alert("최소 4명이 필요합니다.");
-    if(matches.length > 0 && !confirm("기존 기록이 사라집니다?")) return;
+    // 1. 현재 진행 중인 경기 중 완료된 것이 있다면 히스토리로 이동
+    const completed = matches.filter(m => m.completed);
+    if (completed.length > 0) {
+        const timestamp = new Date().toLocaleString();
+        history.unshift({ date: timestamp, games: completed }); // 최신 기록이 위로
+    }
+
+    // 2. 새 대진 생성
+    const activeOnes = players.filter(p => p.active);
+    if(activeOnes.length < 4) return alert("최소 4명이 필요합니다.");
     
     players.forEach(p => { p.score = 0; p.diff = 0; p.gamesPlayed = 0; });
     matches = [];
     
     const target = parseInt(document.getElementById('targetGames').value);
-    let playCounts = {};
-    activePlayers.forEach(p => playCounts[p.name] = 0);
-    const totalMatchCount = Math.ceil((activePlayers.length * target) / 4);
+    let counts = {}; activeOnes.forEach(p => counts[p.name] = 0);
+    const total = Math.ceil((activeOnes.length * target) / 4);
 
-    for(let i = 1; i <= totalMatchCount; i++) {
-        let sorted = [...activePlayers].sort((a, b) => playCounts[a.name] - playCounts[b.name] || Math.random() - 0.5);
-        let mP = sorted.slice(0, 4);
-        mP.sort((a, b) => b.level - a.level); // 실력순 정렬 (밸런싱)
+    for(let i = 1; i <= total; i++) {
+        let sorted = [...activeOnes].sort((a, b) => counts[a.name] - counts[b.name] || Math.random() - 0.5);
+        let mP = sorted.slice(0, 4).sort((a, b) => b.level - a.level);
         matches.push({ id: i, t1: [mP[0].name, mP[3].name], t2: [mP[1].name, mP[2].name], s1: null, s2: null, completed: false });
-        [mP[0], mP[3], mP[1], mP[2]].forEach(p => playCounts[p.name]++);
+        [mP[0], mP[3], mP[1], mP[2]].forEach(p => counts[p.name]++);
     }
-    saveToLocal();
-    updateRankTable();
-    renderAllMatches();
+    saveData(); updateRankTable(); renderMatches(); renderHistory();
 }
 
-function renderAllMatches() {
-    const container = document.getElementById('matchContainer');
-    if(!container) return;
-    container.innerHTML = "";
+function renderMatches() {
+    const c = document.getElementById('matchContainer');
+    c.innerHTML = matches.length ? "" : "생성된 경기가 없습니다.";
     matches.forEach(m => {
         const div = document.createElement('div');
         div.className = `match-card ${m.completed ? 'completed' : ''}`;
-        let scoreArea = m.completed ? `<span class="score-display">${m.s1} : ${m.s2}</span>` : `<input type="number" id="m${m.id}_1" style="width:40px"> : <input type="number" id="m${m.id}_2" style="width:40px">`;
-        let btnArea = m.completed ? `<span style="color:#7f8c8d; font-size:12px;">저장완료</span>` : `<button class="btn" onclick="saveMatch(${m.id})">저장</button>`;
-        div.innerHTML = `<div><strong>[${m.id}]</strong> ${m.t1[0]} & ${m.t1[1]} ${scoreArea} ${m.t2[0]} & ${m.t2[1]}</div><div>${btnArea}</div>`;
-        container.appendChild(div);
+        div.innerHTML = `
+            <div><strong>[${m.id}]</strong> ${m.t1[0]}&${m.t1[1]} 
+            ${m.completed ? `<b>${m.s1} : ${m.s2}</b>` : `<input type="number" id="m${m.id}_1" style="width:40px"> : <input type="number" id="m${m.id}_2" style="width:40px">`}
+            ${m.t2[0]}&${m.t2[1]}</div>
+            ${m.completed ? '<span>완료</span>' : `<button class="btn" onclick="saveMatch(${m.id})">저장</button>`}
+        `;
+        c.appendChild(div);
     });
 }
 
@@ -230,50 +164,72 @@ function saveMatch(id) {
     const m = matches.find(x => x.id === id);
     const s1 = parseInt(document.getElementById(`m${id}_1`).value);
     const s2 = parseInt(document.getElementById(`m${id}_2`).value);
-    if(isNaN(s1) || isNaN(s2)) return alert("점수를 넣으세요");
+    if(isNaN(s1) || isNaN(s2)) return alert("점수를 입력하세요.");
+    
     m.s1 = s1; m.s2 = s2; m.completed = true;
-    const apply = (pName, myS, oppS) => {
-        let p = players.find(x => x.name === pName);
-        if(p) { p.gamesPlayed++; p.diff += (myS - oppS); if(myS > oppS) p.score += 2; else if(myS === oppS) p.score += 1; }
+    const apply = (n, my, op) => {
+        let p = players.find(x => x.name === n);
+        if(p) { p.gamesPlayed++; p.diff += (my - op); if(my > op) p.score += 2; else if(my === op) p.score += 1; }
     };
     apply(m.t1[0], s1, s2); apply(m.t1[1], s1, s2);
     apply(m.t2[0], s2, s1); apply(m.t2[1], s2, s1);
-    saveToLocal(); updateRankTable(); renderAllMatches();
+    saveData(); updateRankTable(); renderMatches();
+}
+
+function renderHistory() {
+    const c = document.getElementById('historyContainer');
+    if (history.length === 0) { c.innerHTML = "과거 기록이 없습니다."; return; }
+    c.innerHTML = history.map(h => `
+        <div class="history-item">
+            <span class="history-date">📅 ${h.date} 대회 기록</span>
+            ${h.games.map(g => `${g.t1[0]}&${g.t1[1]} (${g.s1}:${g.s2}) ${g.t2[0]}&${g.t2[1]}`).join('<br>')}
+        </div>
+    `).join('');
+}
+
+function updateRankTable() {
+    const tbody = document.querySelector('#rankTable tbody');
+    tbody.innerHTML = "";
+    let ranked = [...players].sort((a, b) => b.score - a.score || b.diff - a.diff || b.level - a.level);
+    ranked.forEach((p, i) => {
+        const tr = document.createElement('tr');
+        if(p.score > 0 && i < 3) tr.className = "rank-high";
+        tr.innerHTML = `
+            <td><input type="checkbox" ${p.active ? 'checked' : ''} onchange="toggleActive('${p.name}')"></td>
+            <td>${i+1}</td><td style="text-align:left; padding-left:15px;">${p.name}</td>
+            <td class="admin-only" style="display:${isAdmin?'table-cell':'none'}">${levelMap[p.level]}</td>
+            <td>${p.gamesPlayed}</td><td>${p.score}</td><td>${p.diff}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function toggleActive(n) { const p = players.find(x => x.name === n); p.active = !p.active; saveData(); }
+function toggleAdmin() {
+    isAdmin = !isAdmin;
+    if(isAdmin && prompt("비번") !== "1234") { isAdmin = false; return; }
+    document.getElementById('adminTh').style.display = isAdmin ? "table-cell" : "none";
+    document.getElementById('adminStatus').style.display = isAdmin ? "inline" : "none";
+    updateRankTable();
 }
 
 function exportData() {
-    const data = JSON.stringify({ players, matches }, null, 2);
-    const blob = new Blob([data], {type: "application/json"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `tennis_backup_${new Date().toLocaleDateString()}.json`;
-    a.click();
+    const blob = new Blob([JSON.stringify({players, matches, history})], {type: "application/json"});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `tennis_full_data.json`; a.click();
 }
 
-function importData(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+function importData(e) {
     const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const imported = JSON.parse(e.target.result);
-            players = imported.players || [];
-            matches = imported.matches || [];
-            saveToLocal(); updateRankTable(); renderAllMatches();
-            alert("복구 완료!");
-        } catch (err) { alert("파일 오류"); }
+    reader.onload = (ev) => {
+        const d = JSON.parse(ev.target.result);
+        players = d.players; matches = d.matches; history = d.history || [];
+        saveData(); updateRankTable(); renderMatches(); renderHistory();
     };
-    reader.readAsText(file);
+    reader.readAsText(e.target.files[0]);
 }
 
-function resetAll() {
-    if(confirm("모든 데이터를 지울까요?")) {
-        players = []; matches = [];
-        localStorage.removeItem(STORAGE_KEY);
-        updateRankTable(); renderAllMatches();
-    }
-}
+function resetAll() { if(confirm("초기화?")) { localStorage.clear(); location.reload(); } }
 </script>
 </body>
 </html>
