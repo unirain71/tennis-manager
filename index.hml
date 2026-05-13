@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>테니스 대회 매니저 (히스토리 저장)</title>
+<style>
+    body { font-family: 'Pretendard', sans-serif; padding: 20px; line-height: 1.6; background: #f0f2f5; color: #1a1a1a; }
+    .container { max-width: 950px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+    h2 { border-bottom: 3px solid #3498db; padding-bottom: 12px; color: #2c3e50; display: flex; justify-content: space-between; align-items: center; }
+    .config-section { margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6; }
+    
+    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; background: #fff; }
+    th { background: #2c3e50; color: #ffffff !important; border: 1px solid #dee2e6; padding: 10px; font-size: 14px; }
+    td { border: 1px solid #dee2e6; padding: 10px; color: #333333 !important; text-align: center; font-size: 15px; }
+    
+    .rank-high { background-color: #e3f2fd !important; font-weight: bold; }
+    .admin-only-cell { background-color: #fff9c4 !important; color: #d35400 !important; font-weight: bold; }
+    .editable-lvl { cursor: pointer; text-decoration: underline; color: #e67e22 !important; }
+
+    input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; color: #000 !important; background: #fff; }
+    .btn { padding: 8px 15px; background: #3498db; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-right: 5px; }
+    .btn-admin { background: #546e7a; font-size: 12px; }
+    .btn-gen { background: #2980b9; width: 100%; padding: 15px; font-size: 16px; margin-top: 10px; }
+    .btn-backup { background: #27ae60; font-size: 12px; }
+    .btn-reset { background: #e74c3c; font-size: 12px; }
+    
+    .match-card { border-left: 5px solid #3498db; background: #f8f9fa; padding: 12px; margin-bottom: 10px; border-radius: 5px; display: flex; align-items: center; justify-content: space-between; color: #2c3e50; transition: 0.3s; }
+    .completed { background: #e9ecef !important; border-left-color: #95a5a6 !important; opacity: 0.8; }
+    .score-display { font-weight: bold; color: #2980b9; font-size: 1.1em; margin: 0 15px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h2>
+        🎾 테니스 대회 운영 시스템
+        <div>
+            <button class="btn btn-backup" onclick="exportData()">📥 전체 저장(파일)</button>
+            <label class="btn btn-backup" style="display:inline-block;">
+                📤 데이터 복구
+                <input type="file" id="importInput" style="display:none" onchange="importData(event)">
+            </label>
+            <button class="btn btn-admin" id="adminBtn" onclick="toggleAdmin()">🔒 관리자 모드</button>
+        </div>
+    </h2>
+    
+    <div class="config-section">
+        <div style="margin-bottom:10px;">
+            <input type="text" id="pName" placeholder="이름">
+            <select id="pLevel">
+                <option value="" disabled selected>실력 선택</option>
+                <option value="4">A1 (상)</option>
+                <option value="3">A2 (중상)</option>
+                <option value="2">B1 (중하)</option>
+                <option value="1">B2 (하)</option>
+            </select>
+            <button class="btn" onclick="addPlayer()">선수 추가</button>
+            <button class="btn btn-reset" onclick="resetAll()">전체 초기화</button>
+        </div>
+        <div>
+            목표 경기 수: <input type="number" id="targetGames" value="4" style="width:50px;">
+            <button class="btn btn-gen" onclick="generateMatches()">대진표 새 생성</button>
+        </div>
+    </div>
+
+    <h3>📊 순위표 <span id="adminStatus" style="font-size: 12px; color: #d35400; display: none; font-weight: bold;">(수정 모드)</span></h3>
+    <table id="rankTable">
+        <thead>
+            <tr>
+                <th style="width:50px;">참가</th>
+                <th style="width:60px;">순위</th>
+                <th>이름</th>
+                <th id="adminTh" style="display:none;">실력(수정)</th>
+                <th>경기수</th>
+                <th>승점</th>
+                <th>득실차</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <h3>🎾 경기 히스토리 및 대진</h3>
+    <div id="matchContainer"></div>
+</div>
+
+<script>
+let players = [];
+let matches = [];
+let isAdmin = false;
+const STORAGE_KEY = 'tennis_total_history_v1';
+const levelMap = { "4":"A1", "3":"A2", "2":"B1", "1":"B2" };
+
+window.onload = function() {
+    loadFromLocal();
+};
+
+function saveToLocal() { 
+    const data = { players, matches };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); 
+}
+
+function loadFromLocal() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+        const parsed = JSON.parse(saved);
+        players = parsed.players || [];
+        matches = parsed.matches || [];
+        updateRankTable();
+        renderAllMatches();
+    }
+}
+
+function toggleAdmin() {
+    isAdmin = !isAdmin;
+    if (isAdmin) {
+        const pw = prompt("관리자 비밀번호를 입력하세요 (기본: 1234)");
+        if (pw !== "1234") {
+            isAdmin = false;
+            return alert("비밀번호가 틀렸습니다.");
+        }
+        document.getElementById('adminBtn').innerText = "🔓 관리자 해제";
+        document.getElementById('adminStatus').style.display = "inline";
+        document.getElementById('adminTh').style.display = "table-cell";
+    } else {
+        document.getElementById('adminBtn').innerText = "🔒 관리자 모드";
+        document.getElementById('adminStatus').style.display = "none";
+        document.getElementById('adminTh').style.display = "none";
+    }
+    updateRankTable();
+}
+
+function updateLevel(name) {
+    if (!isAdmin) return;
+    const p = players.find(x => x.name === name);
+    const newLvl = prompt(`${name} 선수의 실력 수정\n(4:A1, 3:A2, 2:B1, 1:B2)`, p.level);
+    if (newLvl && ["1","2","3","4"].includes(newLvl)) {
+        p.level = parseInt(newLvl);
+        saveToLocal();
+        updateRankTable();
+    }
+}
+
+function addPlayer() {
+    const name = document.getElementById('pName').value.trim();
+    const levelStr = document.getElementById('pLevel').value;
+    if(!name || !levelStr) return alert("이름과 실력을 입력하세요");
+    if(players.find(p => p.name === name)) return alert("이미 등록된 이름입니다.");
+    
+    players.push({ name, level: parseInt(levelStr), score: 0, diff: 0, gamesPlayed: 0, active: true });
+    document.getElementById('pName').value = '';
+    updateRankTable();
+    saveToLocal();
+}
+
+function updateRankTable() {
+    const tbody = document.querySelector('#rankTable tbody');
+    tbody.innerHTML = "";
+    let ranked = [...players].sort((a, b) => b.score - a.score || b.diff - a.diff || b.level - a.level);
+    
+    ranked.forEach((p, i) => {
+        const tr = document.createElement('tr');
+        if(p.score > 0 && i < 3) tr.className = "rank-high";
+        let html = `<td><input type="checkbox" ${p.active ? 'checked' : ''} onchange="toggleActive('${p.name}')"></td><td>${i+1}</td><td style="text-align:left; padding-left:20px; font-weight:500;">${p.name}</td>`;
+        if (isAdmin) html += `<td class="admin-only-cell editable-lvl" onclick="updateLevel('${p.name}')">${levelMap[p.level]}</td>`;
+        html += `<td>${p.gamesPlayed}</td><td>${p.score}</td><td>${p.diff}</td>`;
+        tr.innerHTML = html;
+        tbody.appendChild(tr);
+    });
+}
+
+function toggleActive(name) {
+    const p = players.find(x => x.name === name);
+    p.active = !p.active;
+    saveToLocal();
+}
+
+function generateMatches() {
+    if(matches.length > 0 && !confirm("기존 대진표와 히스토리가 삭제됩니다. 새로 생성하시겠습니까?")) return;
+    
+    const activePlayers = players.filter(p => p.active);
+    if(activePlayers.length < 4) return alert("참가 선수가 최소 4명 필요합니다.");
+    
+    // 초기화
+    players.forEach(p => { p.score = 0; p.diff = 0; p.gamesPlayed = 0; });
+    matches = [];
+    
+    const target = parseInt(document.getElementById('targetGames').value);
+    let playCounts = {};
+    activePlayers.forEach(p => playCounts[p.name] = 0);
+    const totalMatchCount = Math.ceil((activePlayers.length * target) / 4);
+
+    for(let i = 1; i <= totalMatchCount; i++) {
+        let sorted = [...activePlayers].sort((a, b) => playCounts[a.name] - playCounts[b.name] || Math.random() - 0.5);
+        let mP = sorted.slice(0, 4);
+        mP.sort((a, b) => b.level - a.level);
+        matches.push({ id: i, t1: [mP[0].name, mP[3].name], t2: [mP[1].name, mP[2].name], s1: null, s2: null, completed: false });
+        [mP[0], mP[3], mP[1], mP[2]].forEach(p => playCounts[p.name]++);
+    }
+    saveToLocal();
+    updateRankTable();
+    renderAllMatches();
+}
+
+function renderAllMatches() {
+    const container = document.getElementById('matchContainer');
+    container.innerHTML = "";
+    matches.forEach(m => {
+        const div = document.createElement('div');
+        div.className = `match-card ${m.completed ? 'completed' : ''}`;
+        
+        let scoreArea = m.completed 
+            ? `<span class="score-display">${m.s1} : ${m.s2}</span>`
+            : `<input type="number" id="m${m.id}_1" style="width:40px"> : <input type="number" id="m${m.id}_2" style="width:40px">`;
+        
+        let btnArea = m.completed
+            ? `<span style="color:#7f8c8d; font-size:12px;">결과 반영됨</span>`
+            : `<button class="btn" onclick="saveMatch(${m.id})">저장</button>`;
+
+        div.innerHTML = `
+            <div><strong>[${m.id}]</strong> ${m.t1[0]} & ${m.t1[1]} ${scoreArea} ${m.t2[0]} & ${m.t2[1]}</div>
+            <div>${btnArea}</div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function saveMatch(id) {
+    const m = matches.find(x => x.id === id);
+    const s1 = parseInt(document.getElementById(`m${id}_1`).value);
+    const s2 = parseInt(document.getElementById(`m${id}_2`).value);
+    if(isNaN(s1) || isNaN(s2)) return alert("점수를 입력하세요");
+
+    m.s1 = s1; m.s2 = s2; m.completed = true;
+
+    const apply = (pName, myS, oppS) => {
+        let p = players.find(x => x.name === pName);
+        if(p) { p.gamesPlayed++; p.diff += (myS - oppS); if(myS > oppS) p.score += 2; else if(myS === oppS) p.score += 1; }
+    };
+
+    apply(m.t1[0], s1, s2); apply(m.t1[1], s1, s2);
+    apply(m.t2[0], s2, s1); apply(m.t2[1], s2, s1);
+
+    saveToLocal();
+    updateRankTable();
+    renderAllMatches();
+}
+
+function exportData() {
+    const data = JSON.stringify({ players, matches }, null, 2);
+    const blob = new Blob([data], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tennis_full_data_${new Date().toLocaleDateString()}.json`;
+    a.click();
+}
+
+function importData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const imported = JSON.parse(e.target.result);
+            players = imported.players || [];
+            matches = imported.matches || [];
+            saveToLocal();
+            updateRankTable();
+            renderAllMatches();
+            alert("모든 데이터를 성공적으로 복구했습니다.");
+        } catch (err) { alert("파일 형식이 잘못되었습니다."); }
+    };
+    reader.readAsText(file);
+}
+
+function resetAll() {
+    if(confirm("모든 선수와 경기 기록을 완전히 삭제하시겠습니까?")) {
+        players = []; matches = [];
+        localStorage.removeItem(STORAGE_KEY);
+        updateRankTable();
+        renderAllMatches();
+    }
+}
+</script>
+</body>
+</html>
