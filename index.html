@@ -49,17 +49,18 @@
             <input type="text" id="pName" placeholder="이름">
             <select id="pLevel">
                 <option value="" disabled selected>실력 선택</option>
-                <option value="4">A1 (상)</option>
-                <option value="3">A2 (중상)</option>
-                <option value="2">B1 (중하)</option>
-                <option value="1">B2 (하)</option>
+                <option value="5">고급 (5)</option>
+                <option value="4">상급 (4)</option>
+                <option value="3">중급 (3)</option>
+                <option value="2">초급 (2)</option>
+                <option value="1">입문 (1)</option>
             </select>
             <button class="btn" onclick="addPlayer()">선수 추가</button>
             <button class="btn btn-reset" onclick="resetAll()">전체 초기화</button>
         </div>
         <div>
             목표 경기 수: <input type="number" id="targetGames" value="4" style="width:50px;">
-            <button class="btn btn-gen" onclick="generateMatches()">대진표 새 생성</button>
+            <button class="btn btn-gen" onclick="generateMatches()">새로운 대진표 생성</button>
         </div>
     </div>
 
