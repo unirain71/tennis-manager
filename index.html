@@ -2,14 +2,11 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-    <title>테니스 대회 매니저</title>
+<title>테니스 대회 매니저</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
     <meta name="apple-mobile-web-app-title" content="테니스대회">
-    
     <link rel="apple-touch-icon" href="icon.jpg">
     <link rel="icon" type="image/jpeg" href="icon.jpg">
-
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
@@ -24,18 +21,15 @@
     td { border: 1px solid #dee2e6; padding: 10px; color: #333 !important; text-align: center; }
     
     .rank-high { background-color: #e3f2fd !important; font-weight: bold; }
-    .btn { padding: 6px 12px; background: #3498db; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-right: 3px; font-size: 13px; }
+    .btn { padding: 6px 12px; background: #3498db; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-right: 3px; font-size: 13px; text-decoration: none; display: inline-block; }
     .btn-gen { background: #2980b9; width: 100%; padding: 15px; font-size: 16px; margin-top: 10px; }
     .btn-del { background: #e74c3c; }
-    .btn-warn { background: #f39c12; color: white; } /* 경고용 오렌지색 */
+    .btn-warn { background: #f39c12; }
     .btn-edit { background: #f39c12; }
+    .btn-nav { background: #34495e; } /* 페이지 이동 버튼 색상 */
     
     .match-card { border-left: 5px solid #3498db; background: #f8f9fa; padding: 12px; margin-bottom: 10px; border-radius: 5px; display: flex; align-items: center; justify-content: space-between; color: #2c3e50; }
     .completed { background: #e9ecef !important; border-left-color: #95a5a6 !important; opacity: 0.9; }
-    
-    .history-section { margin-top: 40px; border-top: 2px dashed #ccc; padding-top: 20px; }
-    .history-item { font-size: 13px; padding: 12px; border-bottom: 1px solid #eee; background: #fff; margin-bottom: 5px; border-radius: 4px; }
-    .history-date { font-weight: bold; color: #34495e; display: block; margin-bottom: 8px; border-left: 3px solid #2ecc71; padding-left: 10px; }
 </style>
 </head>
 <body>
@@ -44,6 +38,7 @@
     <h2>
         🎾 테니스 대회 운영 시스템
         <div>
+            <a href="history.html" class="btn btn-nav">📜 과거 기록 보기</a>
             <button class="btn" style="background:#27ae60" onclick="exportData()">📥 백업</button>
             <label class="btn" style="background:#8e44ad; display:inline-block; cursor:pointer;">
                 📤 복구 <input type="file" style="display:none" onchange="importData(event)">
@@ -67,7 +62,6 @@
         <div>
             목표 경기 수: <input type="number" id="targetGames" value="4" style="width:50px;">
             <button class="btn btn-gen" onclick="generateMatches()">대진표 새 생성</button>
-            <!-- 관리자 모드에서만 보이는 버튼 -->
             <button id="clearMatchesBtn" class="btn btn-warn" style="display:none; margin-top:10px;" onclick="clearCurrentMatches()">⚠️ 현재 경기 기록만 모두 삭제</button>
         </div>
     </div>
@@ -85,11 +79,6 @@
 
     <h3>🎾 진행 중인 경기</h3>
     <div id="matchContainer"></div>
-
-    <div class="history-section">
-        <h3>📜 과거 대회 기록</h3>
-        <div id="historyContainer"></div>
-    </div>
 </div>
 
 <script>
@@ -97,10 +86,13 @@ let players = [];
 let matches = [];
 let history = [];
 let isAdmin = false;
-const STORAGE_KEY = 'tennis_v3_7_final';
+const STORAGE_KEY = 'tennis_v4_0_split'; // 구조 변경으로 인한 새로운 키 설정
 const levelMap = {"5":"고급","4":"상급","3":"중급","2":"초급","1":"입문"};
 
-window.onload = loadData;
+window.onload = function() {
+    loadData();
+    checkAdminSession(); // 페이지 로드시 관리자 로그인 상태 확인
+};
 
 function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify({ players, matches, history })); }
 
@@ -111,16 +103,46 @@ function loadData() {
         players = d.players || [];
         matches = d.matches || [];
         history = d.history || [];
-        updateRankTable(); renderMatches(); renderHistory();
+        updateRankTable(); renderMatches();
     }
 }
 
-// 관리자 전용: 현재 경기 리스트만 싹 지우기
+function checkAdminSession() {
+    if (sessionStorage.getItem('tennis_isAdmin') === 'true') {
+        isAdmin = true;
+        showAdminUI();
+    }
+}
+
+function toggleAdmin() {
+    if(!isAdmin) {
+        if(prompt("비밀번호:") !== "1234") return alert("틀렸습니다.");
+        isAdmin = true;
+        sessionStorage.setItem('tennis_isAdmin', 'true');
+    } else {
+        isAdmin = false;
+        sessionStorage.setItem('tennis_isAdmin', 'false');
+    }
+    showAdminUI();
+}
+
+function showAdminUI() {
+    const adminTh = document.getElementById('adminTh');
+    const adminStatus = document.getElementById('adminStatus');
+    const clearMatchesBtn = document.getElementById('clearMatchesBtn');
+    const adminBtn = document.getElementById('adminBtn');
+
+    adminBtn.innerText = isAdmin ? "🔓 해제" : "🔒 관리자";
+    if(adminTh) adminTh.style.display = isAdmin ? "table-cell" : "none";
+    if(adminStatus) adminStatus.style.display = isAdmin ? "inline" : "none";
+    if(clearMatchesBtn) clearMatchesBtn.style.display = isAdmin ? "inline-block" : "none";
+    
+    updateRankTable(); renderMatches();
+}
+
 function clearCurrentMatches() {
-    if(confirm("주의! 현재 화면에 보이는 모든 대진표와 시합 결과가 삭제됩니다.\n(선수 명단과 과거 히스토리는 유지됩니다.)")) {
-        matches = [];
-        recalculateScores();
-        alert("현재 경기 기록이 모두 삭제되었습니다.");
+    if(confirm("현재 화면의 모든 대진표와 시합 결과가 삭제됩니다.\n(명단과 과거 히스토리는 유지)")) {
+        matches = []; recalculateScores();
     }
 }
 
@@ -136,7 +158,7 @@ function addPlayer() {
 function generateMatches() {
     const completed = matches.filter(m => m.completed);
     if (completed.length > 0) {
-        if(confirm("진행 중인 경기가 있습니다. 이 기록들을 과거 히스토리로 옮기고 새 대진을 짤까요?")) {
+        if(confirm("진행 중인 경기를 과거 히스토리로 옮기고 새 대진을 짤까요?")) {
             history.unshift({ id: Date.now(), date: new Date().toLocaleString(), games: completed });
         } else { return; }
     }
@@ -159,6 +181,7 @@ function generateMatches() {
 
 function renderMatches() {
     const c = document.getElementById('matchContainer');
+    if(!c) return;
     c.innerHTML = matches.length ? "" : "진행 중인 경기가 없습니다.";
     matches.forEach(m => {
         const div = document.createElement('div');
@@ -166,15 +189,11 @@ function renderMatches() {
         let content = `<div><strong>[${m.id}]</strong> ${m.t1[0]}&${m.t1[1]} `;
         if(m.completed) {
             content += `<b>${m.s1} : ${m.s2}</b> ${m.t2[0]}&${m.t2[1]}</div>`;
-            if(isAdmin) {
-                content += `<div><button class="btn btn-edit" onclick="editMatch(${m.id})">수정</button><button class="btn btn-del" onclick="deleteMatch(${m.id})">삭제</button></div>`;
-            }
+            if(isAdmin) content += `<div><button class="btn btn-edit" onclick="editMatch(${m.id})">수정</button><button class="btn btn-del" onclick="deleteMatch(${m.id})">삭제</button></div>`;
         } else {
-            content += `<input type="number" id="m${m.id}_1" style="width:35px"> : <input type="number" id="m${m.id}_2" style="width:35px"> ${m.t2[0]}&${m.t2[1]}</div>`;
-            content += `<div><button class="btn" onclick="saveMatch(${m.id})">저장</button></div>`;
+            content += `<input type="number" id="m${m.id}_1" style="width:35px"> : <input type="number" id="m${m.id}_2" style="width:35px"> ${m.t2[0]}&${m.t2[1]}</div><div><button class="btn" onclick="saveMatch(${m.id})">저장</button></div>`;
         }
-        div.innerHTML = content;
-        c.appendChild(div);
+        div.innerHTML = content; c.appendChild(div);
     });
 }
 
@@ -183,8 +202,7 @@ function saveMatch(id) {
     const s1 = parseInt(document.getElementById(`m${id}_1`).value);
     const s2 = parseInt(document.getElementById(`m${id}_2`).value);
     if(isNaN(s1) || isNaN(s2)) return alert("점수를 입력하세요.");
-    m.s1 = s1; m.s2 = s2; m.completed = true;
-    recalculateScores();
+    m.s1 = s1; m.s2 = s2; m.completed = true; recalculateScores();
 }
 
 function recalculateScores() {
@@ -197,21 +215,12 @@ function recalculateScores() {
         apply(m.t1[0], m.s1, m.s2); apply(m.t1[1], m.s1, m.s2);
         apply(m.t2[0], m.s2, m.s1); apply(m.t2[1], m.s2, m.s1);
     });
-    saveData(); updateRankTable(); renderMatches(); renderHistory();
-}
-
-function toggleAdmin() {
-    isAdmin = !isAdmin;
-    if(isAdmin && prompt("비밀번호:") !== "1234") { isAdmin = false; return; }
-    document.getElementById('adminTh').style.display = isAdmin ? "table-cell" : "none";
-    document.getElementById('adminStatus').style.display = isAdmin ? "inline" : "none";
-    document.getElementById('clearMatchesBtn').style.display = isAdmin ? "inline-block" : "none";
-    updateRankTable(); renderMatches(); renderHistory();
+    saveData(); updateRankTable(); renderMatches();
 }
 
 function updateRankTable() {
     const tbody = document.querySelector('#rankTable tbody');
-    tbody.innerHTML = "";
+    if(!tbody) return; tbody.innerHTML = "";
     let ranked = [...players].sort((a, b) => b.score - a.score || b.diff - a.diff || b.level - a.level);
     ranked.forEach((p, i) => {
         const tr = document.createElement('tr');
@@ -221,29 +230,12 @@ function updateRankTable() {
     });
 }
 
-function renderHistory() {
-    const c = document.getElementById('historyContainer');
-    c.innerHTML = history.length ? "" : "과거 기록이 없습니다.";
-    history.forEach(h => {
-        const div = document.createElement('div');
-        div.className = "history-item";
-        let header = `<div style="display:flex; justify-content:space-between;"><span class="history-date">📅 ${h.date}</span>`;
-        if(isAdmin) header += `<button class="btn btn-del" style="padding:2px 8px;" onclick="deleteHistory(${h.id})">삭제</button>`;
-        header += `</div>`;
-        let games = h.games.map(g => `<div>${g.t1[0]}&${g.t1[1]} <b>${g.s1}:${g.s2}</b> ${g.t2[0]}&${g.t2[1]}</div>`).join('');
-        div.innerHTML = header + games;
-        c.appendChild(div);
-    });
-}
-
-// 공통 함수들 (동일)
 function toggleActive(n) { const p = players.find(x => x.name === n); p.active = !p.active; saveData(); }
 function editMatch(id) { const m = matches.find(x => x.id === id); const n1 = prompt("팀1 점수:", m.s1); const n2 = prompt("팀2 점수:", m.s2); if(n1 !== null && n2 !== null) { m.s1 = parseInt(n1); m.s2 = parseInt(n2); recalculateScores(); } }
 function deleteMatch(id) { if(confirm("삭제?")) { matches = matches.filter(m => m.id !== id); recalculateScores(); } }
-function deleteHistory(hid) { if(confirm("삭제?")) { history = history.filter(h => h.id !== hid); saveData(); renderHistory(); } }
 function exportData() { const blob = new Blob([JSON.stringify({players, matches, history})], {type: "application/json"}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `tennis_backup.json`; a.click(); }
-function importData(e) { const reader = new FileReader(); reader.onload = (ev) => { const d = JSON.parse(ev.target.result); players = d.players; matches = d.matches; history = d.history || []; saveData(); updateRankTable(); renderMatches(); renderHistory(); }; reader.readAsText(e.target.files[0]); }
-function resetAll() { if(confirm("선수 명단 포함 모든 데이터를 초기화하시겠습니까?")) { localStorage.clear(); location.reload(); } }
+function importData(e) { const reader = new FileReader(); reader.onload = (ev) => { const d = JSON.parse(ev.target.result); players = d.players; matches = d.matches; history = d.history || []; saveData(); updateRankTable(); renderMatches(); }; reader.readAsText(e.target.files[0]); }
+function resetAll() { if(confirm("전체 데이터를 초기화하시겠습니까?")) { localStorage.clear(); location.reload(); } }
 </script>
 </body>
 </html>
