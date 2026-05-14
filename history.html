@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>과거 대회 기록실</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+    body { font-family: 'Pretendard', sans-serif; padding: 20px; line-height: 1.6; background: #f0f2f5; color: #1a1a1a; }
+    .container { max-width: 750px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+    h2 { border-bottom: 3px solid #2ecc71; padding-bottom: 12px; color: #2c3e50; display: flex; justify-content: space-between; align-items: center; }
+    .btn { padding: 6px 12px; background: #3498db; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; text-decoration: none; font-size: 13px; display: inline-block; }
+    .btn-nav { background: #34495e; }
+    .btn-del { background: #e74c3c; padding: 3px 8px; font-size: 11px; }
+    .history-item { padding: 15px; border-bottom: 1px solid #dee2e6; background: #f8f9fa; margin-bottom: 10px; border-radius: 6px; }
+    .history-date { font-weight: bold; color: #2c3e50; font-size: 15px; border-left: 4px solid #2ecc71; padding-left: 10px; }
+    .game-line { padding: 5px 0; border-bottom: 1px dotted #e2e8f0; font-size: 14px; color: #4a5568; }
+    .game-line b { color: #2f855a; }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h2>
+        📜 과거 대회 기록 (History)
+        <a href="index.html" class="btn btn-nav">⬅️ 메인 화면으로</a>
+    </h2>
+    
+    <div id="historyList" style="margin-top: 20px;"></div>
+</div>
+
+<script>
+let history = [];
+let players = [];
+let matches = [];
+let isAdmin = false;
+const STORAGE_KEY = 'tennis_v4_0_split';
+
+window.onload = function() {
+    isAdmin = sessionStorage.getItem('tennis_isAdmin') === 'true'; // 메인에서의 로그인 연동
+    loadHistory();
+};
+
+function loadHistory() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    const c = document.getElementById('historyList');
+    if (saved) {
+        const d = JSON.parse(saved);
+        players = d.players || [];
+        matches = d.matches || [];
+        history = d.history || [];
+    }
+    
+    if (history.length === 0) {
+        c.innerHTML = "<p style='text-align:center; color:#718096;'>아직 누적된 과거 기록이 없습니다.</p>";
+        return;
+    }
+    
+    c.innerHTML = "";
+    history.forEach(h => {
+        const div = document.createElement('div');
+        div.className = "history-item";
+        
+        let header = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;"><span class="history-date">📅 ${h.date} 대회 기록</span>`;
+        if(isAdmin) {
+            header += `<button class="btn btn-del" onclick="deleteHistoryEntry(${h.id})">기록 전멸</button>`;
+        }
+        header += `</div>`;
+        
+        let list = h.games.map(g => `<div class="game-line">${g.t1[0]}&${g.t1[1]} <b>${g.s1} : ${g.s2}</b> ${g.t2[0]}&${g.t2[1]}</div>`).join('');
+        div.innerHTML = header + list;
+        c.appendChild(div);
+    });
+}
+
+function deleteHistoryEntry(hid) {
+    if(confirm("이 날짜의 기록을 완전히 삭제할까요?")) {
+        history = history.filter(h => h.id !== hid);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ players, matches, history }));
+        loadHistory();
+    }
+}
+</script>
+</body>
+</html>
